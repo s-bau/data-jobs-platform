@@ -5,7 +5,7 @@ import re
 import sys  # to be able to exit the program in case of errors, using sys.exit() to stop the program
 
 
-"""creating a dataframe with 1 column: url of each job offer"""
+"""creating a dataframe with multiple columns: url of each job offer, title, employer, sense, type of contract"""
 
 # sorting by date "cratedAT"
 url = "https://jobs.makesense.org/fr/s/jobs/all?s=Data%20Analyst&sortBy=createdAt"
@@ -28,20 +28,72 @@ jobs = soup.find_all("div", {"class": "job"})
 if len(jobs) == 0:
     sys.exit("no jobs found, check your find_all")
 
-# looping through joubs and saving each url in a df
+# looping through jobs and saving each url, title in a df
 pattern = r'href="(.*?)"'
 
-url_list = []
+details_list = []
 
 for job in jobs:
     match = re.search(pattern, str(job))
 
-    # error handling: in case of problems finding the link
+    # url
     try:
         url = "https://jobs.makesense.org/" + match.group(1)
     except AttributeError:
         sys.exit("can't find job urls")
 
-    url_list.append(url)
 
-df_url = pd.DataFrame(url_list, columns=["url"])
+    # title
+    try:
+        title = job.find("h3", {"class": "content__title"}).text.strip()
+    except AttributeError:
+        title = None
+
+    # employer
+    employer = job.find("div", {"class": "meta"}).text.strip()
+
+    # employer info
+    info = job.find("p", {"class": "content__project-mission"}).text.strip()
+
+    # details
+    details = str(job.find_all("div", {"class": "meta"}))
+
+    # sense
+    try:
+        dpattern = r"</span>(.*?)<!"
+        match = re.search(dpattern, details, re.DOTALL)
+        sense = match.group(1).strip()
+    except AttributeError:
+        sense = None
+    
+    # type of contract
+    try:
+        cpattern = r"<!-- -->((?:(?![<>]).)*?)<!-- -->"
+        match = re.search(cpattern, details, re.DOTALL)
+        contract = match.group(1).strip()
+    except AttributeError:
+        contract = None
+    
+    # location
+    try:
+        lpattern = r"</svg>((?:(?![<>]).)*?)</address>"
+        match = re.search(lpattern, details, re.DOTALL)
+        location = match.group(1).strip()
+    except AttributeError:
+        location = None
+    
+
+    # all job details
+    detail = {"url": url,
+              "title": title,
+              "employer": employer,
+              "info": info,
+              "sense": sense,
+              "contract": contract,
+              "location": location}
+    details_list.append(detail)
+
+df_details = pd.DataFrame(details_list, columns=["url", "title", "employer", "info", "sense", "contract", "location"])
+
+
+
