@@ -94,6 +94,3 @@ for job in jobs:
     details_list.append(detail)
 
 df_details = pd.DataFrame(details_list, columns=["url", "title", "employer", "info", "sense", "contract", "location"])
-
-
-
