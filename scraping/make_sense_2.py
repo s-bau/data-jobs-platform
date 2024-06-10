@@ -75,5 +75,5 @@ df_additional = pd.DataFrame(additional_list, columns=["url", "publication", "sa
 
 df_make_sense = pd.merge(df_details, df_additional, on="url")
 
-
-#print(df_make_sense.iloc[0,:])
+# save as csv
+df_make_sense.to_csv("df_make_sense.csv", sep=",", encoding="utf-8", index=False)
