@@ -68,17 +68,17 @@ for item in urls_to_scrape:
             sys.exit("can't find job urls")
 
 
-        # job title
+        # Nom emploi
         try:
-            name = job.find("h3", {"class": "content__title"}).text.strip()
+            nom_emploi = job.find("h3", {"class": "content__title"}).text.strip()
         except AttributeError:
-            name = None
+            nom_emploi = None
 
         # Nom entreprise
-        organization_reference = job.find("div", {"class": "meta"}).text.strip()
+        nom_entreprise = job.find("div", {"class": "meta"}).text.strip()
 
         # Description entreprise
-        company_description = job.find("p", {"class": "content__project-mission"}).text.strip()
+        description_cie = job.find("p", {"class": "content__project-mission"}).text.strip()
 
         # details
         details = str(job.find_all("div", {"class": "meta"}))
@@ -95,36 +95,36 @@ for item in urls_to_scrape:
         try:
             cpattern = r"<!-- -->((?:(?![<>]).)*?)<!-- -->"
             match = re.search(cpattern, details, re.DOTALL)
-            contract_type = match.group(1).strip()
+            contrat = match.group(1).strip()
         except AttributeError:
-            contract_type = None
+            contrat = None
     
         # Localisation
         try:
             lpattern = r"</svg>((?:(?![<>]).)*?)</address>"
             match = re.search(lpattern, details, re.DOTALL)
-            city = match.group(1).strip()
+            ville = match.group(1).strip()
         except AttributeError:
-            city = None
+            ville = None
     
 
         # all job details
         detail = {"url": url,
-                "organization_reference": organization_reference,
-                "name": name,
-                "company_description": company_description,
-                "impact": impact,
-                "contract_type": contract_type,
-                "city": city}
+                  "nom_entreprise": nom_entreprise,
+                  "nom_emploi": nom_emploi,
+                  "description_cie": description_cie,
+                  "impact": impact,
+                  "contrat": contrat,
+                  "ville": ville}
         details_list.append(detail)
 
 df_details = pd.DataFrame(details_list, columns=["url",
-                                                 "organization_reference",
-                                                 "name",
-                                                 "company_description",
+                                                 "nom_entreprise",
+                                                 "nom_emploi",
+                                                 "description_cie",
                                                  "impact",
-                                                 "contract_type",
-                                                 "city"])
+                                                 "contrat",
+                                                 "ville"])
 
 
 """accessing infos from each page"""
@@ -146,9 +146,9 @@ for value in df_details["url"].values:
     date_pattern = r"\b\d{2}/\d{2}/\d{4}\b"
     match = re.search(date_pattern, str(section))
     try:
-        publication_date = match.group()
+        date_publication = match.group()
     except AttributeError:
-        publication_date = None
+        date_publication = None
     
     # salaire
     salaire_pattern = r"</svg>(\s*\d[\s\S]*?\s*)</div>"
@@ -161,14 +161,35 @@ for value in df_details["url"].values:
             salaire = None
     else:
         salaire = None
+    
+    # function to find secteur, teletravail and niveau_experience
+    def infos(tag, text):
+        if tag in text:
+            start_index = text.find(tag)
+            text = text[start_index:]
 
-    # début du contrat
-    debut_pattern = r"Début\s*:\s*((?:(?![\n]).)*?)\n"
-    match = re.search(debut_pattern, str(section), re.DOTALL)
-    try:
-        start_date = match.group(1)
-    except AttributeError:
-        start_date = None
+            try:
+                pattern = r"</svg>([\s\S]*?)</div>"
+                match = re.search(pattern, text, re.DOTALL)
+                match = match.group(1).strip()
+            except AttributeError:
+                match = None
+        else:
+            match = None
+        
+        return match
+    
+    secteur = infos('title id="tag"', str(section))
+    teletravail = infos('title id="monitor', str(section))
+    niveau_experience = infos('title id="bar-chart"', str(section))
+
+    # # début du contrat
+    # debut_pattern = r"Début\s*:\s*((?:(?![\n]).)*?)\n"
+    # match = re.search(debut_pattern, str(section), re.DOTALL)
+    # try:
+    #     start_date = match.group(1)
+    # except AttributeError:
+    #     start_date = None
     
     # missions
     try:
@@ -184,14 +205,25 @@ for value in df_details["url"].values:
     
 
     additional = {"url": url,
-                  "publication_date": publication_date,
+                  "date_publication": date_publication,
                   "salaire": salaire,
-                  "start_date": start_date,
+                  "secteur": secteur,
+                  "teletravail": teletravail,
+                  "niveau_experience": niveau_experience,
+                  # "start_date": start_date,
                   "missions": missions,
                   "profil": profil}
     additional_list.append(additional)
 
-df_additional = pd.DataFrame(additional_list, columns=["url", "publication_date", "salaire", "start_date", "missions", "profil"])
+df_additional = pd.DataFrame(additional_list, columns=["url",
+                                                       "date_publication",
+                                                       "salaire",
+                                                       "secteur",
+                                                       "teletravail",
+                                                       "niveau_experience",
+                                                       # "start_date",
+                                                       "missions",
+                                                       "profil"])
 
 df_make_sense = pd.merge(df_details, df_additional, on="url")
 
